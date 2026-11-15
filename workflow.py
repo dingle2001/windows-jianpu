@@ -143,6 +143,8 @@ def pdf_facts(path):
 
 
 def render(a, rt):
+    if a.template and a.pitch_mode != 'movable':
+        raise ValueError("JPword 模板分支使用首调。固定调纯简谱请去掉 --template")
     upstream=rt[0]
     job=a.job.resolve(strict=True)
     files,meta=checked_handoff(job)

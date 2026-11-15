@@ -9,6 +9,8 @@
 | 排版 | 校订 MusicXML → `alignment.insitu.pdf` 线简对照、`numbered.jianpu.pdf` 纯简谱待验稿 |
 | 定稿 | 对照核验并保存校对记录 → `delivery/performance.pdf`；需要原谱分行风格或特殊符号时可提交 JPword 实际导出的 PDF |
 
+[Windows CI](https://github.com/dingle2001/windows-jianpu/actions/workflows/windows.yml) 在全新环境安装依赖，并从公开五线谱样本复跑 CPU 识谱、校对和排版。
+
 ## Windows 快速开始
 
 使用 64 位 Windows、PowerShell、Git 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)。首次需要网络下载 Python 3.11、依赖、LilyPond 及识谱权重。默认 CPU，无需 NVIDIA 显卡。安装后通常可使用本地缓存，但干净环境需要联网。任务路径可使用中文；LilyPond 和识谱临时目录应使用英文、数字路径。系统临时目录含中文时添加 `-ScratchRoot 'D:\score-tmp'`，可按实际磁盘调整。
@@ -36,7 +38,7 @@ $job = '.\jobs\曲目名'
 
 ## JPword 和 MCP
 
-已有同类 JPword 模板时，`render` 加 `--template 'D:\乐谱\模板.jpwabc' --instrument '曲笛'` 会生成 `editable.jpwabc` 及 `jpword-draft.json`。建议以模板和原谱的行布局核对曲笛谱里常见的倚音、颤音 tr、跳音 ▼、连奏、延音线、装饰音位置及换页。模板的实际样式和当前 JPword 版本须打开检查。完成后用 Codex Computer Use 操作 JPword 导出纯简谱 PDF，再用 `finalize --pdf '导出的简谱.pdf'` 归档。安装 JPword 和准备模板由使用者完成，无 JPword 时亦可验证并交付自动排版稿。
+JPword 模板分支使用首调。已有同类 JPword 模板时，`render` 加 `--template 'D:\乐谱\模板.jpwabc' --instrument '曲笛'` 会生成 `editable.jpwabc` 及 `jpword-draft.json`。建议以模板和原谱的行布局核对曲笛谱里常见的倚音、颤音 tr、跳音 ▼、连奏、延音线、装饰音位置及换页。模板的实际样式和当前 JPword 版本须打开检查。完成后用 Codex Computer Use 操作 JPword 导出纯简谱 PDF，再用 `finalize --pdf '导出的简谱.pdf'` 归档。安装 JPword 和准备模板由使用者完成，无 JPword 时亦可验证并交付自动排版稿。
 
 本地 stdio MCP 是可选入口，用于谱面文件检查、生成和校对。桌面界面与导出继续走 Computer Use。见 [MCP 配置与能力](docs/jpword-mcp.md)。
 

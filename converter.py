@@ -107,12 +107,11 @@ def convert(xml, template, *, part_id="", measures_per_line=0, title="", instrum
             midx += 1
             label = measure.get("number")
             local = f"第 {label} 小节"
-            attr = measure.find("attributes")
             prefix = []
-            key_here = attr is not None and attr.find("key") is not None
-            if attr is not None:
+            key_here = measure.find("attributes/key") is not None
+            for attr in measure.findall("attributes"):
                 division = int(attr.findtext("divisions", str(division)))
-                if key_here:
+                if attr.find("key") is not None:
                     fifths = attr.findtext("key/fifths")
                     if fifths is None or int(fifths) not in TONICS:
                         raise ValueError(local + "存在不支持的复合调号")

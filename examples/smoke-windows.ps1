@@ -17,4 +17,11 @@ Run-Python @((Join-Path $PSScriptRoot 'review_fixture.py'), $Job)
 Run-Python @($workflow, 'handoff', '--job', $Job)
 Run-Python @($workflow, 'render', '--job', $Job, '--title', 'Windows Etude', '--instrument', 'Flute')
 Run-Python @((Join-Path $PSScriptRoot 'verify_fixture_pdfs.py'), $Job)
+$jobPath = (Resolve-Path -LiteralPath $Job).Path
+Push-Location -LiteralPath $root
+try {
+    Run-Python @('-m', 'examples.verify_fixture_jpword', $jobPath)
+} finally {
+    Pop-Location
+}
 Write-Host 'Fixture passed. For a fresh visual check, open both generated PDFs before finalize.'
