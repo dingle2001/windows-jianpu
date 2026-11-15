@@ -1,6 +1,6 @@
 # Windows 五线谱转简谱
 
-在 Windows 上把一份单声部乐器五线谱 PDF 转为可校对、可打印的简谱。流程由 Homr 识谱、Codex 辅助逐小节校对、music_translator 排版组成。可用 JPword 工程保留演奏记号并做最终排版。本项目借助 AI 辅助完成。
+在 Windows 上把一份单声部乐器五线谱 PDF 转为可校对、可打印的简谱。流程由 Homr 识谱、Codex 辅助逐小节校对、music_translator 排版组成。可用 JPword 工程保留演奏记号并做最终排版。
 
 | 步骤 | 输入和产物 |
 | --- | --- |
@@ -48,6 +48,6 @@ JPword 模板分支使用首调。已有同类 JPword 模板时，`render` 加 `
 
 ## 前人工作
 
-- 曦然哥（xuxiran）公开了从五线谱到简谱的早期实现，为本项目提供方法参考。 [translate-staff-to-simple-musical-notation](https://github.com/xuxiran/translate-staff-to-simple-musical-notation)
-- 小应（starpacker）的 `music_translator` 提供识谱适配、原位对照和独立简谱排版。本项目调用其固定版本，在已跑通的 Mac 线简对照基础上补齐 Windows 安装、中文路径兼容、校对交接及印刷稿验收。 [music_translator](https://github.com/starpacker/music_translator/tree/6273fe3db901799e4bcf981d2c2369cd3454588a)
+- xuxiran公开了从五线谱到简谱的早期实现，为本项目提供方法参考。 [translate-staff-to-simple-musical-notation](https://github.com/xuxiran/translate-staff-to-simple-musical-notation)
+- starpacker的 `music_translator` 提供识谱适配、原位对照和独立简谱排版。本项目调用其固定版本，在已跑通的 Mac 线简对照基础上补齐 Windows 安装、中文路径兼容、校对交接及印刷稿验收。 [music_translator](https://github.com/starpacker/music_translator/tree/6273fe3db901799e4bcf981d2c2369cd3454588a)
 - 依赖及其许可证见 [第三方声明](THIRD_PARTY_NOTICES.md)。本项目代码采用 AGPL-3.0，原创样谱和它的各阶段 PDF 采用 CC0 1.0。
