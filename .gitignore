@@ -1,0 +1,14 @@
+/.work/
+/.deps/
+/.venv/
+/.venv-cuda/
+/runtime.local.json
+/jobs/
+/dist/
+__pycache__/
+*.py[cod]
+*.jpwabc
+*.musicxml
+*.mxl
+*.pdf
+!examples/validated/*.pdf

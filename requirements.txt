@@ -1,0 +1,8 @@
+homr==0.7.0
+onnxruntime==1.26.0
+music21==10.5.2
+PyMuPDF==1.28.2
+Pillow==12.3.0
+reportlab==5.0.0
+mcp==1.28.1
+defusedxml==0.7.1

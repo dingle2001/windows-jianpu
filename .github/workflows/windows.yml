@@ -1,0 +1,22 @@
+name: Windows score smoke test
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cpu:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Bootstrap CPU tools
+        shell: pwsh
+        run: .\setup-windows.ps1 -ScratchRoot $env:RUNNER_TEMP
+      - name: Convert the original staff PDF
+        shell: pwsh
+        run: .\examples\smoke-windows.ps1 -Job (Join-Path $env:RUNNER_TEMP 'score-smoke')
