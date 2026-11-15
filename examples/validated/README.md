@@ -1,6 +1,8 @@
 # Windows 实测样谱
 
-`staff.pdf` 是由本项目原创的 [LilyPond 乐谱源](../staff.ly) 生成的单声部长笛谱。验证输入只有这份 PDF。Windows CPU 识别先产生 MusicXML，再以原谱逐小节校验并补回四分音符＝84。按 G 大调首调、4/4 拍验收。
+`staff.pdf` 是由本项目原创的 [LilyPond 乐谱源](../staff.ly) 生成的单声部长笛谱。验证输入只有这份 PDF。Windows CPU 识别先产生 MusicXML，再以原谱逐小节校验并补回四分音符＝84。按 G 大调首调、4/4 拍验收。CUDA 路径在 RTX 4070 Laptop GPU 复跑同一份样谱，三个 Homr 模型会话均记录到 CUDA。
+
+![原创长笛测试谱第 1 页局部](../../docs/screenshots/staff.png)
 
 - [原五线谱](staff.pdf) · 1 页，8 小节，原谱为 4＋4。
 - [线简对照](alignment.pdf) · 1 页，2 个谱表均成功对齐，每行各 4 小节。
@@ -8,4 +10,4 @@
 
 逐小节核对 30 个音的音高、八度、时值，核对半休止、附点和八分音符减时线、低八度点、终止线及调拍标记。此样例不含 tr、跳音、倚音和多小节休止。另以合成标记确认 JPword 工程中跳音和原生 tr 的音符锚点。实际导出的符号效果仍需使用目标曲谱与模板核对。
 
-从仓库根目录执行 `examples/smoke-windows.ps1 -Job './jobs/sample-new'` 可复跑 CPU 与结构检查。复验脚本会检查此样本的调号、拍号、速度、音符和时值，并检查两份 PDF 和对照图是否生成。仍需打开当次的 PDF 确认版面。样谱和衍生 PDF 用 [CC0](https://creativecommons.org/publicdomain/zero/1.0/) 发布。
+从仓库根目录执行 `./examples/smoke-windows.ps1 -Job './jobs/sample-new'` 可复跑当前配置的 CPU 或 CUDA 与结构检查。复验脚本会检查此样本的调号、拍号、速度、音符和时值，并检查两份 PDF 和对照图是否生成。仍需打开当次的 PDF 确认版面。样谱和衍生 PDF 用 [CC0](https://creativecommons.org/publicdomain/zero/1.0/) 发布。

@@ -1,53 +1,103 @@
 # Windows 五线谱转简谱
 
-在 Windows 上把一份单声部乐器五线谱 PDF 转为可校对、可打印的简谱。流程由 Homr 识谱、Codex 辅助逐小节校对、music_translator 排版组成。可用 JPword 工程保留演奏记号并做最终排版。
+把单声部乐器五线谱 PDF 转成**线简对照稿**和可打印的**纯简谱**。面向曲笛、长笛等分谱。Windows x64 支持 CPU 和 NVIDIA CUDA 识谱，可用 Agent 辅助逐小节校对，也可用 JPword 做演奏版精修。
 
-| 步骤 | 输入和产物 |
+[实际效果](#实际效果) · [Windows 安装](#windows-安装) · [转一首新谱](#转一首新谱) · [GPU 推理](#gpu-推理) · [Agent 接入](#agent-接入) · [来源与贡献](#来源与贡献)
+
+## 实际效果
+
+### 《秦兵马俑》曲笛演奏版
+
+彭修文曲《秦兵马俑》，第 63 小节起的局部。上图为原五线谱，下图为已经在 JPword 复校并导出的曲笛简谱。可以对照看到跳音点写作实心倒三角 ▼，并保留了连奏、力度和渐强渐弱。此处展示局部谱例，谱例仅用于说明转谱效果。
+
+![《秦兵马俑》第 63 小节起的原五线谱](docs/screenshots/qin-staff-m63.png)
+
+![《秦兵马俑》第 63 小节起的曲笛演奏版简谱，标有跳音、连奏与力度](docs/screenshots/qin-jianpu-m63.png)
+
+### 可复跑的长笛样谱
+
+同一份原创样谱的实际输出。原位对照把简谱放到对应的五线谱下方，保留原谱 4＋4 小节的分行。独立纯简谱按纸面重分行，样谱的 8 小节排在一行。
+
+| 原位线简对照 | 纯简谱 |
 | --- | --- |
-| 识谱 | 原始五线谱 PDF → 原样留存的 PDF、识谱 MusicXML、各页图像、时值检查 |
-| 校对 | 逐页对照原谱和识谱稿 → `reviewed.musicxml`、逐页记录 |
-| 排版 | 校订 MusicXML → `alignment.insitu.pdf` 线简对照、`numbered.jianpu.pdf` 纯简谱待验稿 |
-| 定稿 | 对照核验并保存校对记录 → `delivery/performance.pdf`；需要原谱分行风格或特殊符号时可提交 JPword 实际导出的 PDF |
+| ![两行五线谱及其下方的小节对照](docs/screenshots/alignment.png) | ![独立纯简谱修订版](docs/screenshots/performance.png) |
 
-[Windows CI](https://github.com/dingle2001/windows-jianpu/actions/workflows/windows.yml) 在全新环境安装依赖，并从公开五线谱样本复跑 CPU 识谱、校对和排版。
+[五线谱原件](examples/validated/staff.pdf) · [完整 PDF 与测试记录](examples/validated/README.md)
 
-## Windows 快速开始
+## Windows 安装
 
-使用 64 位 Windows、PowerShell、Git 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)。首次需要网络下载 Python 3.11、依赖、LilyPond 及识谱权重。默认 CPU，无需 NVIDIA 显卡。安装后通常可使用本地缓存，但干净环境需要联网。任务路径可使用中文；LilyPond 和识谱临时目录应使用英文、数字路径。系统临时目录含中文时添加 `-ScratchRoot 'D:\score-tmp'`，可按实际磁盘调整。
+使用 64 位 Windows、PowerShell、Git 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)。首次安装和下载识谱模型需要联网。安装脚本准备 Python 3.11、Homr、固定版本的 music_translator 和 LilyPond。
 
 ```powershell
 git clone https://github.com/dingle2001/windows-jianpu.git
 Set-Location windows-jianpu
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1
-$env:PYTHONUTF8 = '1'
-$py = '.\.venv\Scripts\python.exe'
-$job = '.\jobs\曲目名'
-& $py .\workflow.py prepare 'D:\乐谱\原始五线谱.pdf' --job $job
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1 -Backend cpu
 ```
 
-打开任务目录内的 `source.pdf`、`review/`、`draft-check.json` 和 `omr.raw.musicxml`。用 [Codex 校对指令](docs/codex-review.md) 校对，保存 `reviewed.musicxml` 与 `review-notes.md`。下面以首调为例，遇到移调乐器须先确认排的是记谱音还是实际音。
+乐谱和任务目录可用中文。LilyPond 与识谱中间文件使用 ASCII 路径。如果系统临时目录含中文，给安装脚本传入 `-ScratchRoot`，指定只包含英文、数字等 ASCII 字符且可写的临时目录。
+
+用公开样谱试跑一次。每次使用新的任务目录。
 
 ```powershell
-& $py .\workflow.py handoff --job $job
-& $py .\workflow.py render --job $job --title '曲目名'
-# 查看两份 PDF，逐页复验后把实际检查结果写入任务目录的 print-review.md。
-& $py .\workflow.py finalize --job $job --review (Join-Path $job 'print-review.md')
+.\examples\smoke-windows.ps1 -Job './jobs/sample'
 ```
 
-候选稿保存于 `edition-01`。重新校订后再次执行 `handoff`，再用 `render --edition edition-02`，导出验收时对应传入同一个版本。轮次间源 PDF 和校订 MusicXML 由 SHA-256 关联。使用 `prepare --draft 初稿.musicxml` 可继续已有的识谱稿；使用 `handoff --fold-multirests` 时仅对照分支折叠多小节休止，校订母稿仍保留原小节。可用 `render --pitch-mode fixed --fixed-tonic C` 改用固定调名。自动纯简谱允许重分行，对照稿保持按原谱系统对齐。严格要求每行小节数一致时，使用下方 JPword 路径并逐页核对。
+[GitHub Windows 测试](https://github.com/dingle2001/windows-jianpu/actions/workflows/windows.yml)会在全新环境安装 CPU 依赖，并从原始样谱 PDF 跑到可复验的纯简谱和线简对照稿。
 
-## JPword 和 MCP
+## 转一首新谱
 
-JPword 模板分支使用首调。已有同类 JPword 模板时，`render` 加 `--template 'D:\乐谱\模板.jpwabc' --instrument '曲笛'` 会生成 `editable.jpwabc` 及 `jpword-draft.json`。建议以模板和原谱的行布局核对曲笛谱里常见的倚音、颤音 tr、跳音 ▼、连奏、延音线、装饰音位置及换页。模板的实际样式和当前 JPword 版本须打开检查。完成后用 Codex Computer Use 操作 JPword 导出纯简谱 PDF，再用 `finalize --pdf '导出的简谱.pdf'` 归档。安装 JPword 和准备模板由使用者完成，无 JPword 时亦可验证并交付自动排版稿。
+```text
+原始五线谱 PDF → Homr 识谱 → MusicXML 逐小节校订
+                               ├─ 线简对照 PDF
+                               ├─ 纯简谱 PDF
+                               └─ 可选 JPword 工程 → 桌面精修与导出
+```
 
-本地 stdio MCP 是可选入口，用于谱面文件检查、生成和校对。桌面界面与导出继续走 Computer Use。见 [MCP 配置与能力](docs/jpword-mcp.md)。
+```powershell
+$env:PYTHONUTF8 = '1'
+$py = (Get-Content ./runtime.local.json -Raw | ConvertFrom-Json).python
+$job = './jobs/my-score'
+$score = Read-Host '输入原始五线谱 PDF 的路径'
+& $py ./workflow.py prepare $score --job $job
+```
 
-## 样谱和实测
+1. 打开 `source.pdf`、`review/` 和 `omr.raw.musicxml`，按页码、行、小节核对音高、时值、调拍、连线、休止和装饰音。写出 `reviewed.musicxml` 和 `review-notes.md`。已有初稿可在 `prepare` 时加 `--draft`；校对仍以源 PDF 为准。
+2. 运行 `handoff` 和 `render`。默认用首调，可用 `--pitch-mode fixed --fixed-tonic C` 选择固定调名。先确认移调乐器的书面音或实音口径。
+3. 打开 `edition-01/alignment.insitu.pdf` 和 `edition-01/numbered.jianpu.pdf`，检查分行、符号和裁切，保存实际检查结果到任务目录中的 `print-review.md`，再执行 `finalize`。
 
-仓库内附原创 CC0 样谱与核对程序。以 [验证记录](examples/validated/README.md) 为准，包含官方识谱模型从原始五线谱 PDF 得出的结果。可用 `examples/smoke-windows.ps1` 在新任务目录复跑。复杂谱、小节反复、移调、扫描件、装饰音和跨页连线必须逐份与原谱校对。
+```powershell
+& $py ./workflow.py handoff --job $job
+& $py ./workflow.py render --job $job --title '曲目名称'
+& $py ./workflow.py finalize --job $job --review (Join-Path $job 'print-review.md')
+```
 
-## 前人工作
+定稿路径为 `edition-01/delivery/performance.pdf`。修订后重新交接，并在排版、定稿时分别指定同一个新版本，例如 `--edition edition-02`。`handoff --fold-multirests` 可在对照稿中折叠多小节休止，校订母稿保留原小节结构。
 
-- xuxiran公开了从五线谱到简谱的早期实现，为本项目提供方法参考。 [translate-staff-to-simple-musical-notation](https://github.com/xuxiran/translate-staff-to-simple-musical-notation)
-- starpacker的 `music_translator` 提供识谱适配、原位对照和独立简谱排版。本项目调用其固定版本，在已跑通的 Mac 线简对照基础上补齐 Windows 安装、中文路径兼容、校对交接及印刷稿验收。 [music_translator](https://github.com/starpacker/music_translator/tree/6273fe3db901799e4bcf981d2c2369cd3454588a)
-- 依赖及其许可证见 [第三方声明](THIRD_PARTY_NOTICES.md)。本项目代码采用 AGPL-3.0，原创样谱和它的各阶段 PDF 采用 CC0 1.0。
+### JPword 精修
+
+希望纯简谱严格按原谱逐行分小节时，准备一份已完成的 JPword 原生模板。在 `render` 加 `--template` 和 `--instrument`，会得到可编辑的 `editable.jpwabc` 和工程检查报告。模板分支使用首调。把工程用 JPword 打开，逐项检查跳音 ▼、原生 tr、倚音、力度、跨行连线和页边距，使用桌面操作导出，再以 `finalize --pdf` 归档导出的印刷版。
+
+## GPU 推理
+
+有受支持的 NVIDIA GPU 时，使用兼容 CUDA 12 的 NVIDIA 驱动。CUDA 环境独立安装，包含 ONNX Runtime GPU 和 CUDA/cuDNN 运行库。首次下载体积较大。已用 RTX 4070 Laptop GPU 从原谱样例跑通识谱和输出。
+
+```powershell
+nvidia-smi
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1 -Backend cuda
+.\examples\smoke-windows.ps1 -Job './jobs/sample-cuda'
+(Get-Content './jobs/sample-cuda/omr-runtime.json' -Raw | ConvertFrom-Json).observed_homr_providers
+```
+
+在 `observed_homr_providers` 中看到 `CUDAExecutionProvider`，表示有实际执行的 Homr 模型会话使用 CUDA 为首选执行提供程序。个别算子仍可能在 CPU 执行，排版继续由 LilyPond 处理。样谱脚本会核查分割、编码器和解码器三个 Homr 会话的提供程序。若只看到 CPU，检查任务日志、驱动和 CUDA DLL。在同一项目里切回 CPU 时重新运行 `-Backend cpu` 安装指令，后续命令使用 `runtime.local.json` 记录的后端。
+
+## Agent 接入
+
+具备本地文件读取、图片查看和命令执行能力的 Agent 可直接走 CLI。支持 stdio MCP 的客户端还可以连接本地 JPword 服务，查询 MusicXML、核对源谱、生成 JPword 工程及审核导出布局。[Agent 校对指令](docs/agent-review.md) · [通用 MCP 配置与工具](docs/jpword-mcp.md)
+
+## 来源与贡献
+
+1. xuxiran 的早期五线谱转简谱工作，为本项目提供方法参考。[xuxiran/translate-staff-to-simple-musical-notation](https://github.com/xuxiran/translate-staff-to-simple-musical-notation)
+2. starpacker 的原项目提供五线谱识别、原位线简对照与独立简谱排版，是 Windows 版的直接运行依赖。[starpacker/music_translator](https://github.com/starpacker/music_translator)
+3. Apple Silicon macOS 适配版，支持 Core ML 和 Agent 校谱。Windows 工作流接续了该版本的线简对照及交接经验。[dingle2001/music-translator-macos](https://github.com/dingle2001/music-translator-macos)
+
+欢迎大家在原项目的基础上继续完善、优化并开源成果。使用、引用、移植或改进时，请在文档或发布说明中标明出处、保留上游和贡献者署名，并遵循相应许可证。[AGPL-3.0](LICENSE) · [第三方声明与谱例版权](THIRD_PARTY_NOTICES.md)

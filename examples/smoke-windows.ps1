@@ -13,6 +13,13 @@ function Run-Python([string[]] $Command) {
     if ($LASTEXITCODE) { throw "Fixture failed (exit $LASTEXITCODE): $($Command[0])" }
 }
 Run-Python @($workflow, 'prepare', $source, '--job', $Job)
+$omr = Get-Content -LiteralPath (Join-Path $Job 'omr-runtime.json') -Raw | ConvertFrom-Json
+$provider = if ($settings.backend -eq 'cuda') { 'CUDAExecutionProvider' } else { 'CPUExecutionProvider' }
+foreach ($model in @('segnet_*', 'encoder_*', 'decoder_*')) {
+    $executed = $omr.sessions | Where-Object { $_.model -like $model -and $_.executed -and $_.providers[0] -eq $provider }
+    if (!$executed) { throw "Homr did not run $model with $provider. See omr-runtime.json." }
+}
+Write-Host "Homr ran segmentation, encoder and decoder with $provider."
 Run-Python @((Join-Path $PSScriptRoot 'review_fixture.py'), $Job)
 Run-Python @($workflow, 'handoff', '--job', $Job)
 Run-Python @($workflow, 'render', '--job', $Job, '--title', 'Windows Etude', '--instrument', 'Flute')

@@ -2,6 +2,7 @@
 
 import argparse
 from collections import Counter
+from contextlib import contextmanager
 from copy import deepcopy
 from fractions import Fraction
 from importlib.metadata import PackageNotFoundError, version
@@ -63,6 +64,32 @@ def runtime(jianpu, backend):
             'project': str(Path(jianpu.__file__).parent)}
 
 
+@contextmanager
+def homr_config_signature():
+    """Preserve the real configuration names after the upstream shim wraps init."""
+    import homr_shim
+    from homr import main as homr_main
+
+    install = homr_shim.install
+    original_config = homr_main.ProcessingConfig
+    signature = inspect.signature(original_config.__init__)
+
+    def install_with_signature(*args, **kwargs):
+        changed = install(*args, **kwargs)
+        if changed:
+            config = homr_main.ProcessingConfig
+            # homr_runner filters kwargs with inspect.signature before instantiation.
+            config.__init__.__signature__ = signature
+        return changed
+
+    homr_shim.install = install_with_signature
+    try:
+        yield
+    finally:
+        homr_shim.install = install
+        homr_main.ProcessingConfig = original_config
+
+
 def recognize(jianpu, pdf, job, engine, backend):
     status = {}
     work = job / 'omr'
@@ -96,19 +123,24 @@ def recognize(jianpu, pdf, job, engine, backend):
                 self.observation = {'model': model, 'providers': self.get_providers(), 'executed': False}
                 sessions.append(self.observation)
 
+            def record_execution(self):
+                # ONNX Runtime can reset providers when it retries a failed run.
+                self.observation.update(executed=True, providers=self.get_providers())
+
             def run(self, *args, **kwargs):
                 result = super().run(*args, **kwargs)
-                self.observation['executed'] = True
+                self.record_execution()
                 return result
 
             def run_with_iobinding(self, *args, **kwargs):
                 result = super().run_with_iobinding(*args, **kwargs)
-                self.observation['executed'] = True
+                self.record_execution()
                 return result
 
         ort.InferenceSession = ObservedSession
         try:
-            score = entry(pdf, work, **options)
+            with homr_config_signature():
+                score = entry(pdf, work, **options)
             if any(work.rglob('.partial-omr')) or not (work / f'{pdf.stem}.omr-cache.json').is_file():
                 raise ValueError(f'Homr 识别或后处理不完整，请检查 {work}')
             status['status'] = 'complete'
