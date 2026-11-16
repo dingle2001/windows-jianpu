@@ -171,7 +171,8 @@ def jpword_rehearsal_workflow() -> str:
     return ("先盘点 MusicXML 并明确声部，逐行对照原五线谱。能识别矢量时运行源谱谱位检查，"
             "按原谱校对升降号、时值、连线、跳音▼、原生 tr、倚音、力度和换乐器。"
             "借用指定 JPword 模板另存转谱稿，并审核工程数据。"
-            "用 Computer Use 在 JPword 打开最新版并导出矢量 PDF，检查谱行间距和长休止符。"
+            "用 Computer Use 在 JPword 确认已打开最新版，点击「导出打印」或按 Ctrl+Shift+F2 导出矢量 PDF。"
+            "检查谱行间距和长休止符。"
             "按实测修正偏移后重新导出，通过逐页图像检查插入文字、演奏标记和裁切。"
             "保留对应版本的工程和 PDF。")
 
