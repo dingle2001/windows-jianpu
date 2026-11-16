@@ -7,10 +7,10 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 from typing import Annotated
 
-from score_io import load_score, inspect_score
+from score_io import load_score, inspect_score, part_measures, source_rows
 from converter import convert, write_draft
 from audit import audit_project
-from jpword_layout import apply_row_gap, move_attached_text
+from jpword_layout import apply_row_gap, move_attached_text, paginate_rows, replace_page_breaks
 from jpword_pdf import export_preview, fit_exported_rests, inspect_export
 from staff_pdf import verify_staff
 
@@ -91,6 +91,25 @@ async def jpword_set_row_gap(project: str, output: str, row_gap_mm: Gap) -> dict
         original = scoped(project, {".jpwabc"}).read_text(encoding="utf-16")
         write_draft(target, apply_row_gap(original, row_gap_mm))
         return {"output": str(target.relative_to(ROOT)), "row_gap_mm": row_gap_mm}
+    return await asyncio.to_thread(work)
+
+
+@mcp.tool(annotations=WRITE)
+async def jpword_repaginate(source: str, project: str, output: str, page_starts: list[str | int],
+                           current_page_starts: list[str | int] | None=None, part_id: str="",
+                           measures_per_line: Lines=0) -> dict:
+    """按指定行首小节重新分页并另存，保留调号、谱行、音符和手工修改。"""
+    def work():
+        xml = scoped(source, MUSIC)
+        existing = scoped(project, {".jpwabc"})
+        target = scoped(output, {".jpwabc"}, create=True)
+        audit_project(xml, existing, part_id, measures_per_line, current_page_starts)
+        measures = part_measures(load_score(xml), part_id, allow_native=True)
+        rows = paginate_rows(source_rows(measures, measures_per_line), page_starts)
+        updated = replace_page_breaks(existing.read_text(encoding="utf-16"), rows)
+        write_draft(target, updated)
+        return {"output": str(target.relative_to(ROOT)), "page_starts": page_starts,
+                "explicit_pages": rows[-1][0], "reexport_required": True}
     return await asyncio.to_thread(work)
 
 

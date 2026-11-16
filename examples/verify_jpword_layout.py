@@ -7,8 +7,9 @@ import pymupdf
 
 from audit import audit_project
 from converter import convert, write_draft
-from jpword_layout import MM_PER_PT, REST_MARK, apply_row_gap, move_attached_text, text_line
+from jpword_layout import MM_PER_PT, REST_MARK, apply_row_gap, move_attached_text, replace_page_breaks, text_line
 from jpword_pdf import export_preview, fit_exported_rests, inspect_export
+from score_io import load_score, part_measures, source_rows
 
 
 SOURCE = """<score-partwise>
@@ -73,7 +74,11 @@ def verify(work):
     paged, report = convert(source,template,page_starts=[3])
     assert report["explicit_pages"] == 2
     paged_file = work / "paged.jpwabc"
-    write_draft(paged_file,paged)
+    rows = source_rows(part_measures(load_score(source)))
+    new_pages = [(1,rows[0][1]),(2,rows[1][1])]
+    assert replace_page_breaks(paged,rows) == convert(source,template)[0]
+    assert replace_page_breaks(convert(source,template)[0],new_pages) == paged
+    write_draft(paged_file,replace_page_breaks(draft,new_pages))
     assert audit_project(source,paged_file,page_starts=[3])["explicit_pages"] == 2
     label = text_line(2,1,0,-6.4,"Allegro")
     updated, xy = move_attached_text(draft+"\n"+label,2,1,"Allegro",3,-4)

@@ -53,6 +53,26 @@ def paginate_rows(rows, page_starts=None):
     return result
 
 
+def replace_page_breaks(project, rows):
+    """Apply new page breaks while preserving all systems and attachments."""
+    prefix, voice_marker, remainder = project.partition("\n.Voice\n")
+    voice, words_marker, suffix = remainder.partition("\n.Words\n")
+    if not voice_marker or not words_marker:
+        raise ValueError("JPword 工程缺少 .Voice 或 .Words")
+    lines = voice.split("\n")
+    systems = [i for i,line in enumerate(lines) if line.strip()]
+    if len(systems) != len(rows):
+        raise ValueError("JPword 工程谱行数与 MusicXML 不一致")
+    for index, line_number in enumerate(systems):
+        body, control, tail = lines[line_number].rpartition("$(")
+        if not control or (control+tail).strip() not in {PAGE_BREAK, ROW_END}:
+            raise ValueError(f"第 {index+1} 行含自定义谱行设置，请在 JPword 检查后分页")
+        next_page = index+1 < len(rows) and rows[index+1][0] != rows[index][0]
+        end = PAGE_BREAK if next_page else ROW_END
+        lines[line_number] = body + end + tail[len(tail.rstrip()):]
+    return prefix+voice_marker+"\n".join(lines)+words_marker+suffix
+
+
 @dataclass(frozen=True)
 class Rest:
     tokens: tuple[str, ...]
