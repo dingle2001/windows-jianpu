@@ -10,6 +10,7 @@ from jpword_layout import MM_PER_PT, REST_MARK, paginate_rows, replace_rest_mark
 from score_io import load_score, part_measures, source_rows, visible
 
 REST_CENTER_TOLERANCE_MM = 1.8
+REST_OFFSET_SCALE = 2.4
 
 
 @dataclass
@@ -117,7 +118,10 @@ def inspect_export(pdf, xml, *, part_id="", measures_per_line=0, page_starts=Non
             "text_collision_check":"visual_required_for_outlined_text"}
 
 
-def fit_exported_rests(project, report):
+def fit_exported_rests(project, report, *, offset_scale=REST_OFFSET_SCALE):
+    """Convert measured page displacement to the template's editable x units."""
+    if not 0.1 <= offset_scale <= 10:
+        raise ValueError("长休止附件横向比例必须在 0.1 到 10 之间")
     broken={i["issue"] for i in report["issues"]}-{"rest_needs_fit"}
     if broken:
         raise ValueError(f"导出 PDF 无法和工程对齐：{', '.join(sorted(broken))}。先检查分页、栏线高度和导出版本。")
@@ -132,8 +136,11 @@ def fit_exported_rests(project, report):
         if cap<3:
             raise ValueError(f"第 {rest['measure']} 小节可用宽度太小，先在 JPword 拉开该小节")
         width=min(widths[ordinal],cap)
-        text=replace_rest_mark(text,ordinal,rest["center_delta_mm"],width)
-        changes.append({"measure":rest["measure"],"offset_delta_mm":rest["center_delta_mm"],"width_mm":width})
+        page_delta = rest["center_delta_mm"]
+        anchor_delta = page_delta / offset_scale
+        text=replace_rest_mark(text,ordinal,anchor_delta,width)
+        changes.append({"measure":rest["measure"],"offset_delta_mm":page_delta,
+                        "anchor_delta":round(anchor_delta,3),"width_mm":width})
     return text,changes
 
 

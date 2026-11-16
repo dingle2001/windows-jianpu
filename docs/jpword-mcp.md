@@ -43,7 +43,7 @@ codex mcp list
 1. 先对照原五线谱和已人工核对的 MusicXML。保留原分行。需要重新安排纸面分页时，给 `page_starts` 传入每张新页对应的行首小节号，如 `[49, 97]`。上述参数同样传给后续工程和 PDF 检查。省略该参数时沿用 MusicXML 分页。
 2. 使用 `jpword_create_draft` 和 `jpword_audit_project`。默认谱行间距为 13 mm，文字密集时生成器根据预计层数增加间距。手工精修过的工程可直接用 `jpword_set_row_gap` 保留已有内容。手册《怎样排版》“设置垂直定位”使用 `Ctrl+F8`，谱行间距对应第四项。需要减少每页行数时，用 `jpword_repaginate` 指定下一页的行首小节；原工程手动指定过分页时，填写 `current_page_starts`。重新导出后检查页底、跨行连线和裁切。
 3. 用 Computer Use 切到 JPword，确认标题栏显示最新版工程，点击「导出打印」或在该窗口按 `Ctrl+Shift+F2`，生成矢量 PDF。使用新的文件名逐版留存，然后运行 `jpword_audit_export`。默认采用 A4、20 mm 左边距与 17.856 pt 栏线高度。若模板、字号、打印缩放或纸张变化，请按导出 PDF 校准 `left_margin_mm` 与 `bar_height_pt`。矢量轮廓是测量依据，图像型 PDF 需逐页核查。
-4. 手册《怎样打器乐谱》“如何打多小节休止符”使用 `Ctrl+R`，以填满小节的隐藏休止为锚点。初稿参考该原生附件的宽度与偏移。长休止伸出小节或中心偏移超过 1.8 mm 时，`jpword_audit_export` 会报告 `rest_needs_fit`。用 `jpword_fit_multirests` 按实测修正，并从修正稿重新导出。分页或栏线不同会阻止自动校准，先复核工程和导出是否同版。
+4. 手册《怎样打器乐谱》“如何打多小节休止符”使用 `Ctrl+R`，以填满小节的隐藏休止为锚点。初稿参考该原生附件的宽度与偏移。长休止伸出小节或中心偏移超过 1.8 mm 时，`jpword_audit_export` 会报告 `rest_needs_fit`。用 `jpword_fit_multirests` 按实测修正，并从修正稿重新导出。参考模板下，工程的横向偏移每增加一个单位，打印位置实测移动约 2.4 mm。若模板不同，可用 `offset_scale` 提供本模板实测比例。分页或栏线不同会阻止自动校准，先复核工程和导出是否同版。
 5. 用 `jpword_preview_export_page` 逐页确认标题、排练号、速度／力度说明、跳音 ▼、tr、倚音和页边距。文字绘制为轮廓时，是否相交由视觉确认。按需用 `jpword_move_attached_text` 微调，传入从 1 起计的可见小节序号、音符序号和用于区分附件的文字。压缩的长休止格按一个可见小节计。位移单位为毫米，x 正值向右，y 正值向下。再次导出并查看整页，记录所看的页码与剩余差异。
 
 提示词 `jpword_rehearsal_workflow` 可供 Agent 复用。最终效果依赖每份谱的原生导出与视觉复核。

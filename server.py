@@ -11,7 +11,7 @@ from score_io import load_score, inspect_score, part_measures, source_rows
 from converter import convert, write_draft
 from audit import audit_project
 from jpword_layout import apply_row_gap, move_attached_text, paginate_rows, replace_page_breaks
-from jpword_pdf import export_preview, fit_exported_rests, inspect_export
+from jpword_pdf import REST_OFFSET_SCALE, export_preview, fit_exported_rests, inspect_export
 from staff_pdf import verify_staff
 
 mcp = FastMCP("jpword_mcp")
@@ -140,7 +140,8 @@ async def jpword_audit_export(source: str, exported_pdf: str, part_id: str="",me
 @mcp.tool(annotations=WRITE)
 async def jpword_fit_multirests(source: str, project: str, exported_pdf: str, output: str,
                               part_id: str="", measures_per_line: Lines=0, bar_height_pt: BarHeight=17.856,
-                              left_margin_mm: Margin=20., page_starts: list[str | int] | None=None) -> dict:
+                              left_margin_mm: Margin=20., page_starts: list[str | int] | None=None,
+                              offset_scale: Annotated[float, Field(ge=.1, le=10)]=REST_OFFSET_SCALE) -> dict:
     """依据该工程刚导出的矢量 PDF 微调长休止符，然后另存。需在 JPword 重新导出复查。"""
     def work():
         src = scoped(source, MUSIC)
@@ -150,10 +151,10 @@ async def jpword_fit_multirests(source: str, project: str, exported_pdf: str, ou
         report = inspect_export(scoped(exported_pdf,{".pdf"}),src,part_id=part_id,
             measures_per_line=measures_per_line,page_starts=page_starts,
             bar_height_pt=bar_height_pt,left_margin_mm=left_margin_mm)
-        updated, changes = fit_exported_rests(score, report)
+        updated, changes = fit_exported_rests(score, report, offset_scale=offset_scale)
         write_draft(target, updated)
         return {"output": str(target.relative_to(ROOT)), "changes": changes,
-                "source_pdf_sha256": report["pdf_sha256"], "reexport_required": True}
+                "offset_scale": offset_scale, "source_pdf_sha256": report["pdf_sha256"], "reexport_required": True}
     return await asyncio.to_thread(work)
 
 

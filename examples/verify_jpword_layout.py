@@ -96,7 +96,8 @@ def verify(work):
     assert report["minimum_system_separation_mm"] == round(80*MM_PER_PT,2)
     fitted, changes = fit_exported_rests(project,report)
     assert len(changes) == 1 and abs(changes[0]["offset_delta_mm"] + 2.4) < .01, changes
-    assert float(REST_MARK.search(fitted)[3]) < float(marker[3])
+    assert changes[0]["anchor_delta"] == -1.0
+    assert abs(float(REST_MARK.search(fitted)[3])-float(marker[3])+1) < .01
     corrected = work / "corrected.jpwabc"
     write_draft(corrected,fitted)
     assert audit_project(source,corrected)["marks"]["multirest"] == 1
