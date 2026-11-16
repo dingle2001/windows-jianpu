@@ -2,14 +2,16 @@
 import argparse
 import asyncio
 from pathlib import Path
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Image
 from mcp.types import ToolAnnotations
 from pydantic import Field
 from typing import Annotated
 
 from score_io import load_score, inspect_score
 from converter import convert, write_draft
-from audit import audit_project, audit_pdf_layout
+from audit import audit_project
+from jpword_layout import apply_row_gap, move_attached_text
+from jpword_pdf import export_preview, fit_exported_rests, inspect_export
 from staff_pdf import verify_staff
 
 mcp = FastMCP("jpword_mcp")
@@ -39,6 +41,11 @@ def scoped(relative, suffixes, create=False):
 READ=ToolAnnotations(readOnlyHint=True,destructiveHint=False,openWorldHint=False)
 WRITE=ToolAnnotations(readOnlyHint=False,destructiveHint=False,idempotentHint=False,openWorldHint=False)
 Lines = Annotated[int,Field(ge=0,le=16,description="0 保留 MusicXML 的原分行；正数仅用于暂排")]
+Gap = Annotated[float, Field(ge=0, le=30, description="JPword 垂直定位第四项，单位 mm")]
+BarHeight = Annotated[float, Field(gt=1, lt=100)]
+Margin = Annotated[float, Field(ge=0, lt=100)]
+Offset = Annotated[float, Field(ge=-50, le=50)]
+Ordinal = Annotated[int, Field(ge=1)]
 
 
 @mcp.tool(annotations=READ)
@@ -55,28 +62,88 @@ async def jpword_verify_staff_pdf(original_pdf: str, source: str, part_id: str="
 
 @mcp.tool(annotations=WRITE)
 async def jpword_create_draft(source: str, template: str, output: str, part_id: str="",
-                              measures_per_line: Lines=0, title: str="", instrument: str="", subtitle: str="") -> dict:
+                              measures_per_line: Lines=0, title: str="", instrument: str="", subtitle: str="",
+                              row_gap_mm: Gap=13., page_starts: list[str | int] | None=None) -> dict:
     """从已校对 MusicXML 单旋律生成一个新的 JPword UTF-16 工程，并返回分行表和待办。所有路径相对乐谱根目录，输出不得已存在。"""
     def work():
         target=scoped(output,{".jpwabc"},create=True)
         score,report=convert(scoped(source,MUSIC),scoped(template,{".jpwabc"}),part_id=part_id,
-                            measures_per_line=measures_per_line,title=title,instrument=instrument,subtitle=subtitle)
+                            measures_per_line=measures_per_line,title=title,instrument=instrument,subtitle=subtitle,
+                            row_gap_mm=row_gap_mm,page_starts=page_starts)
         write_draft(target,score)
         return {"output":str(target.relative_to(ROOT)),**report}
     return await asyncio.to_thread(work)
 
 
 @mcp.tool(annotations=READ)
-async def jpword_audit_project(source: str, project: str, part_id: str="", measures_per_line: Lines=0) -> dict:
+async def jpword_audit_project(source: str, project: str, part_id: str="", measures_per_line: Lines=0,
+                              page_starts: list[str | int] | None=None) -> dict:
     """检查工程的可见小节、音高、时值、跳音、原生颤音等锚点。通过也仍需用 JPword 看实际谱面。"""
-    return await asyncio.to_thread(lambda: audit_project(scoped(source,MUSIC),scoped(project,{".jpwabc"}),part_id,measures_per_line))
+    return await asyncio.to_thread(lambda: audit_project(scoped(source,MUSIC),scoped(project,{".jpwabc"}),
+                                                         part_id,measures_per_line,page_starts))
+
+
+@mcp.tool(annotations=WRITE)
+async def jpword_set_row_gap(project: str, output: str, row_gap_mm: Gap) -> dict:
+    """调整现有工程的全局谱行间距并另存，保留小节及手动修改。另存后在 JPword 检查分页和裁切。"""
+    def work():
+        target = scoped(output, {".jpwabc"}, create=True)
+        original = scoped(project, {".jpwabc"}).read_text(encoding="utf-16")
+        write_draft(target, apply_row_gap(original, row_gap_mm))
+        return {"output": str(target.relative_to(ROOT)), "row_gap_mm": row_gap_mm}
+    return await asyncio.to_thread(work)
+
+
+@mcp.tool(annotations=WRITE)
+async def jpword_move_attached_text(project: str, output: str, visible_measure: Ordinal, note: Ordinal,
+                                   match_text: str, dx_mm: Offset=0., dy_mm: Offset=0.) -> dict:
+    """根据导出页的视觉结果移动唯一文字附件并另存；x 向右为正，y 向下为正。"""
+    def work():
+        target = scoped(output, {".jpwabc"}, create=True)
+        original = scoped(project, {".jpwabc"}).read_text(encoding="utf-16")
+        updated, (x,y) = move_attached_text(original,visible_measure,note,match_text,dx_mm,dy_mm)
+        write_draft(target, updated)
+        return {"output": str(target.relative_to(ROOT)), "anchor": [visible_measure,note],
+                "x_mm": x, "y_mm": y, "reexport_required": True}
+    return await asyncio.to_thread(work)
 
 
 @mcp.tool(annotations=READ)
 async def jpword_audit_export(source: str, exported_pdf: str, part_id: str="",measures_per_line: Lines=0,
-                              bar_height_pt: Annotated[float,Field(gt=1,lt=100)]=17.856) -> dict:
-    """按 JPword 7.10m 矢量版式读取实际分页和栏线。字号变化时须先校准栏线高度，仍需目视检查排版。"""
-    return await asyncio.to_thread(lambda: audit_pdf_layout(scoped(exported_pdf,{".pdf"}),scoped(source,MUSIC),part_id,measures_per_line,bar_height_pt))
+                              bar_height_pt: BarHeight=17.856, left_margin_mm: Margin=20.,
+                              page_starts: list[str | int] | None=None) -> dict:
+    """检查 JPword 7.10m 矢量导出的分页、栏线、长休止符居中和谱行实际距离。"""
+    return await asyncio.to_thread(lambda: inspect_export(scoped(exported_pdf,{".pdf"}),scoped(source,MUSIC),
+        part_id=part_id,measures_per_line=measures_per_line,page_starts=page_starts,
+        bar_height_pt=bar_height_pt,left_margin_mm=left_margin_mm))
+
+
+@mcp.tool(annotations=WRITE)
+async def jpword_fit_multirests(source: str, project: str, exported_pdf: str, output: str,
+                              part_id: str="", measures_per_line: Lines=0, bar_height_pt: BarHeight=17.856,
+                              left_margin_mm: Margin=20., page_starts: list[str | int] | None=None) -> dict:
+    """依据该工程刚导出的矢量 PDF 微调长休止符，然后另存。需在 JPword 重新导出复查。"""
+    def work():
+        src = scoped(source, MUSIC)
+        score = scoped(project, {".jpwabc"})
+        target = scoped(output, {".jpwabc"}, create=True)
+        audit_project(src, score, part_id, measures_per_line, page_starts)
+        report = inspect_export(scoped(exported_pdf,{".pdf"}),src,part_id=part_id,
+            measures_per_line=measures_per_line,page_starts=page_starts,
+            bar_height_pt=bar_height_pt,left_margin_mm=left_margin_mm)
+        updated, changes = fit_exported_rests(score, report)
+        write_draft(target, updated)
+        return {"output": str(target.relative_to(ROOT)), "changes": changes,
+                "source_pdf_sha256": report["pdf_sha256"], "reexport_required": True}
+    return await asyncio.to_thread(work)
+
+
+@mcp.tool(annotations=READ)
+async def jpword_preview_export_page(exported_pdf: str, page: Annotated[int, Field(ge=1)]=1,
+                                    dpi: Annotated[int, Field(ge=72, le=180)]=120) -> Image:
+    """以图像显示 JPword 实际导出的指定页，用于人工检查文字碰撞、裁切及标记。"""
+    data = await asyncio.to_thread(lambda: export_preview(scoped(exported_pdf,{".pdf"}),page,dpi))
+    return Image(data=data,format="png")
 
 
 @mcp.prompt()
@@ -85,8 +152,9 @@ def jpword_rehearsal_workflow() -> str:
     return ("先盘点 MusicXML 并明确声部，逐行对照原五线谱。能识别矢量时运行源谱谱位检查，"
             "按原谱校对升降号、时值、连线、跳音▼、原生 tr、倚音、力度和换乐器。"
             "借用指定 JPword 模板另存转谱稿，并审核工程数据。"
-            "用 Computer Use 在用户的 JPword 打开最新版并导出 PDF。逐页检查分行、分页、标记和裁切。"
-            "不可将旧版 PDF 或结构通过当成最新演奏版验收；保留工程和本次导出的 PDF。")
+            "用 Computer Use 在 JPword 打开最新版并导出矢量 PDF，检查谱行间距和长休止符。"
+            "按实测修正偏移后重新导出，通过逐页图像检查插入文字、演奏标记和裁切。"
+            "保留对应版本的工程和 PDF。")
 
 
 if __name__=="__main__":

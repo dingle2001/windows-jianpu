@@ -28,6 +28,7 @@ $jobPath = (Resolve-Path -LiteralPath $Job).Path
 Push-Location -LiteralPath $root
 try {
     Run-Python @('-m', 'examples.verify_fixture_jpword', $jobPath)
+    Run-Python @('-m', 'examples.verify_jpword_layout', $jobPath)
 } finally {
     Pop-Location
 }

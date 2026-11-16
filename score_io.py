@@ -47,7 +47,7 @@ def load_score(path):
     return doc
 
 
-def part_measures(doc, part_id=""):
+def part_measures(doc, part_id="", *, allow_native=False):
     parts = doc.findall("part")
     if part_id:
         parts = [part for part in parts if part.get("id") == part_id]
@@ -61,14 +61,23 @@ def part_measures(doc, part_id=""):
         label = m.get("number", "")
         if not re.fullmatch(r"[\w.-]{1,32}", label):
             raise ValueError(f"不支持的小节号：{label!r}")
-        if m.find("backup") is not None or m.find("forward") is not None or m.find("note/chord") is not None:
+        if (m.find("backup") is not None or m.find("forward") is not None
+                or (not allow_native and m.find("note/chord") is not None)):
             raise ValueError(f"第 {label} 小节包含和弦、多声部或隐含位移，需先整理成单旋律")
         if m.find("attributes/transpose") is not None:
             raise ValueError(f"第 {label} 小节含移调乐器信息，请先确定书面音和实音的口径")
-        if any(b.find("repeat") is not None or b.find("ending") is not None for b in m.findall("barline")):
+        if any(b.find("ending") is not None or (not allow_native and b.find("repeat") is not None)
+               for b in m.findall("barline")):
             raise ValueError(f"第 {label} 小节含反复或房子，当前版本需要手工处理")
         if not m.findall("note"):
             raise ValueError(f"第 {label} 小节没有音符或显式休止符")
+    if allow_native:
+        if ms[0].find("barline/repeat[@direction='forward']") is not None:
+            raise ValueError("谱首反复线须在 JPword 内添加并核对")
+        for previous, current in zip(ms, ms[1:]):
+            if (previous.find("barline/repeat[@direction='backward']") is not None
+                    and current.find("barline/repeat[@direction='forward']") is not None):
+                raise ValueError(f"第 {current.get('number')} 小节前的双向反复线须在 JPword 内处理")
     return ms
 
 

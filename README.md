@@ -75,7 +75,7 @@ $score = Read-Host '输入原始五线谱 PDF 的路径'
 
 ### JPword 精修
 
-希望纯简谱严格按原谱逐行分小节时，准备一份已完成的 JPword 原生模板。在 `render` 加 `--template` 和 `--instrument`，会得到可编辑的 `editable.jpwabc` 和工程检查报告。模板分支使用首调。把工程用 JPword 打开，逐项检查跳音 ▼、原生 tr、倚音、力度、跨行连线和页边距，使用桌面操作导出，再以 `finalize --pdf` 归档导出的印刷版。
+希望纯简谱严格按原谱逐行分小节时，准备一份已完成的 JPword 原生模板。在 `render` 加 `--template` 和 `--instrument`，会得到可编辑的 `editable.jpwabc` 和工程检查报告。模板分支使用首调。可用 `--row-gap-mm` 调整谱行间距，用 `--page-start` 指定新页的行首小节。用 JPword 打开工程并导出，测量长休止符位置并逐页检查跳音 ▼、原生 tr、倚音、力度、跨行连线和页边距，再以 `finalize --pdf` 归档导出的印刷版。
 
 ## GPU 推理
 
@@ -92,7 +92,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1 -Bac
 
 ## Agent 接入
 
-具备本地文件读取、图片查看和命令执行能力的 Agent 可直接走 CLI。支持 stdio MCP 的客户端还可以连接本地 JPword 服务，查询 MusicXML、核对源谱、生成 JPword 工程及审核导出布局。[Agent 校对指令](docs/agent-review.md) · [通用 MCP 配置与工具](docs/jpword-mcp.md)
+具备本地文件读取、图片查看和命令执行能力的 Agent 可直接走 CLI。支持 stdio MCP 的客户端还可以连接本地 JPword 服务，查询 MusicXML、核对源谱、生成 JPword 工程、调整文字及行距，并按导出 PDF 校准长休止符。[Agent 校对指令](docs/agent-review.md) · [MCP 配置与工具](docs/jpword-mcp.md) · [更新记录](CHANGELOG.md)
 
 ## 来源与贡献
 

@@ -169,10 +169,11 @@ def render(a, rt):
             "--work",job_probe,"-o",converted/"numbered",*common,cwd=stage,scratch=stage)
         proofs={"alignment":pdf_facts(converted/"alignment.insitu.pdf"),"numbered":pdf_facts(converted/"numbered.jianpu.pdf")}
         if a.template:
-            score,report=convert(master,a.template.resolve(strict=True),title=a.title,instrument=a.instrument)
+            score,report=convert(master,a.template.resolve(strict=True),title=a.title,instrument=a.instrument,
+                                 row_gap_mm=a.row_gap_mm,page_starts=a.page_start)
             project=converted/"editable.jpwabc"
             write_draft(project,score)
-            report.update(project_check=audit_project(master,project))
+            report.update(project_check=audit_project(master,project,page_starts=a.page_start))
             write_json(converted/"jpword-draft.json",report)
         write_json(converted/"render.json",{"status":"pending_visual_review","source_pdf_sha256":meta["source_pdf_sha256"],
             "reviewed_musicxml_sha256":meta["reviewed_musicxml_sha256"],"proofs":proofs})
@@ -226,6 +227,8 @@ def cli():
     r.add_argument("--fixed-tonic",default="C")
     r.add_argument("--template",type=Path,help="可选的 JPword 工程模板")
     r.add_argument("--instrument",default="")
+    r.add_argument("--row-gap-mm",type=float,default=13.,help="JPword 谱行间距，单位 mm")
+    r.add_argument("--page-start",action="append",help="JPword 换页的行首小节，可重复指定")
     final=sub.add_parser("finalize")
     final.add_argument("--job",type=Path,required=True)
     final.add_argument("--edition",default="edition-01")
