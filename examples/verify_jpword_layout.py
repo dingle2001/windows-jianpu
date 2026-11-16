@@ -40,12 +40,23 @@ VertSpacing = 1.00, 0.30, 0.20, 5.50
 """.format(empty="")
 
 
-def draw_outline(pdf, center):
+def draw_outline(pdf, center, *, repeat=False, clipped_caption=False):
     """Draw the native profile's filled vector shapes at known positions."""
     with pymupdf.open() as doc:
         page = doc.new_page(width=595.28, height=841.89)
-        for top in (100, 180):
-            page.draw_rect((200,top,200.7,top+17.856),color=None,fill=(0,0,0))
+        page.draw_rect((200,100,200.7,117.856),color=None,fill=(0,0,0))
+        if repeat:
+            mark = page.new_shape()
+            mark.draw_rect((200,180,200.7,197.856))
+            mark.draw_rect((202.5,180,204.5,197.856))
+            mark.draw_circle((197.8,186),1)
+            mark.draw_circle((197.8,192),1)
+            mark.finish(color=None,fill=(0,0,0))
+            mark.commit()
+        else:
+            page.draw_rect((200,180,200.7,197.856),color=None,fill=(0,0,0))
+        if clipped_caption:
+            page.draw_rect((100,-5,150,5),color=None,fill=(0,0,0))
         a, b = center-20, center+20
         outline = page.new_shape()
         outline.draw_polyline([(a,100),(a+1.5,100),(a+1.5,105),(b-1.5,105),
@@ -102,6 +113,13 @@ def verify(work):
     write_draft(corrected,fitted)
     assert audit_project(source,corrected)["marks"]["multirest"] == 1
     assert inspect_export(aligned,source)["status"] == "pdf_layout_checked"
+    repeat = work/"repeat.pdf"
+    draw_outline(repeat,center,repeat=True,clipped_caption=True)
+    edge_report = inspect_export(repeat,source)
+    assert edge_report["observed"] == edge_report["expected"]
+    assert [i["issue"] for i in edge_report["issues"]] == ["page_vertical_clearance"]
+    assert edge_report["page_vertical_clearance_mm"][1]["top"] < 0
+    assert fit_exported_rests(project,edge_report)[1] == []
     assert export_preview(aligned,1,72).startswith(b"\x89PNG\r\n\x1a\n")
     print("JPword layout calibration checked: rest anchor, offsets, page breaks and export preview.")
 

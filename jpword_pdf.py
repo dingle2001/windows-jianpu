@@ -11,6 +11,7 @@ from score_io import load_score, part_measures, source_rows, visible
 
 REST_CENTER_TOLERANCE_MM = 1.8
 REST_OFFSET_SCALE = 2.4
+PAGE_VERTICAL_CLEARANCE_MM = 10.
 
 
 @dataclass
@@ -20,15 +21,24 @@ class System:
     rests: list
 
 
-def native_systems(page, bar_height_pt):
+def native_systems(shapes, bar_height_pt):
     """Read the filled rectangles used for barlines in an outlined JPword print."""
-    shapes = page.get_drawings()
     grouped = defaultdict(list)
     for shape in shapes:
         rect = shape["rect"]
-        if shape["type"] == "f" and abs(rect.height-bar_height_pt)<.15 and 0<rect.width<5:
-            y = next((key for key in grouped if abs(key-rect.y0)<.15),rect.y0)
-            grouped[y].append(rect.x0)
+        if shape["type"] != "f" or abs(rect.height-bar_height_pt)>=.15:
+            continue
+        x = rect.x0
+        if not 0<rect.width<5:
+            # JPword outlines a repeat's two stems and dots in one wider fill.
+            stems = [item[1] for item in shape["items"] if item[0]=="re"
+                     and abs(item[1].height-bar_height_pt)<.15 and 0<item[1].width<3]
+            curves = sum(item[0]=="c" for item in shape["items"])
+            if not (5<=rect.width<12 and len(stems)==2 and curves>=8):
+                continue
+            x = sum(stem.x0 for stem in stems)/len(stems)
+        y = next((key for key in grouped if abs(key-rect.y0)<.15),rect.y0)
+        grouped[y].append(x)
     systems = []
     for y, points in sorted(grouped.items()):
         groups = []
@@ -76,9 +86,20 @@ def inspect_export(pdf, xml, *, part_id="", measures_per_line=0, page_starts=Non
     rest_checks=[]
     issues=[]
     gaps=[]
+    page_clearance={}
     with pymupdf.open(pdf) as document:
         for number,page in enumerate(document,1):
-            native=native_systems(page,bar_height_pt)
+            shapes = page.get_drawings()
+            ink = [shape["rect"] for shape in shapes
+                   if shape["rect"].width < page.rect.width*.98
+                   and shape["rect"].height < page.rect.height*.98]
+            if ink:
+                top = round((min(r.y0 for r in ink)-page.rect.y0)*MM_PER_PT,2)
+                bottom = round((page.rect.y1-max(r.y1 for r in ink))*MM_PER_PT,2)
+                page_clearance[number]={"top":top,"bottom":bottom}
+                if min(top,bottom)<PAGE_VERTICAL_CLEARANCE_MM:
+                    issues.append({"page":number,"issue":"page_vertical_clearance","top_mm":top,"bottom_mm":bottom})
+            native=native_systems(shapes,bar_height_pt)
             page_grids[number]=[len(r.edges) for r in native]
             chart=expected.get(number,[])
             gaps.extend((number,round((b.top-a.top)*MM_PER_PT,2)) for a,b in zip(native,native[1:]))
@@ -114,6 +135,7 @@ def inspect_export(pdf, xml, *, part_id="", measures_per_line=0, page_starts=Non
             "expected":{p:[n for n,_ in rs] for p,rs in expected.items()},"observed":page_grids,
             "rests":rest_checks,"issues":issues,
             "rest_center_tolerance_mm":REST_CENTER_TOLERANCE_MM,
+            "page_vertical_clearance_mm":page_clearance,
             "minimum_system_separation_mm":min((v for _,v in gaps),default=None),
             "text_collision_check":"visual_required_for_outlined_text"}
 
@@ -122,7 +144,7 @@ def fit_exported_rests(project, report, *, offset_scale=REST_OFFSET_SCALE):
     """Convert measured page displacement to the template's editable x units."""
     if not 0.1 <= offset_scale <= 10:
         raise ValueError("长休止附件横向比例必须在 0.1 到 10 之间")
-    broken={i["issue"] for i in report["issues"]}-{"rest_needs_fit"}
+    broken={i["issue"] for i in report["issues"]}-{"rest_needs_fit","page_vertical_clearance"}
     if broken:
         raise ValueError(f"导出 PDF 无法和工程对齐：{', '.join(sorted(broken))}。先检查分页、栏线高度和导出版本。")
     text=Path(project).read_text(encoding="utf-16")
