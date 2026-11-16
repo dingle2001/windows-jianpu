@@ -87,13 +87,15 @@ def verify(work):
 
     missed, aligned = work/"missed.pdf", work/"aligned.pdf"
     center = (20/MM_PER_PT+200)/2
-    draw_outline(missed,center+24)
+    # A 2.4 mm shift in a wide cell must still be reported.
+    shift_pt = 2.4/MM_PER_PT
+    draw_outline(missed,center+shift_pt)
     draw_outline(aligned,center)
     report = inspect_export(missed,source)
     assert [issue["issue"] for issue in report["issues"]] == ["rest_needs_fit"], report
     assert report["minimum_system_separation_mm"] == round(80*MM_PER_PT,2)
     fitted, changes = fit_exported_rests(project,report)
-    assert len(changes) == 1 and abs(changes[0]["offset_delta_mm"] + 24*MM_PER_PT) < .01, changes
+    assert len(changes) == 1 and abs(changes[0]["offset_delta_mm"] + 2.4) < .01, changes
     assert float(REST_MARK.search(fitted)[3]) < float(marker[3])
     corrected = work / "corrected.jpwabc"
     write_draft(corrected,fitted)

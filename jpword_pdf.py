@@ -9,6 +9,8 @@ import pymupdf
 from jpword_layout import MM_PER_PT, REST_MARK, paginate_rows, replace_rest_mark
 from score_io import load_score, part_measures, source_rows, visible
 
+REST_CENTER_TOLERANCE_MM = 1.8
+
 
 @dataclass
 class System:
@@ -97,7 +99,8 @@ def inspect_export(pdf, xml, *, part_id="", measures_per_line=0, page_starts=Non
                         continue
                     dx=(cell_center-center)*MM_PER_PT
                     cap=(right-left-6)*MM_PER_PT
-                    ok=bounds.x0>=left+1.5 and bounds.x1<=right-1.5 and abs(dx)<=max(1.8,(right-left)*.10*MM_PER_PT)
+                    ok=(bounds.x0>=left+1.5 and bounds.x1<=right-1.5
+                        and abs(dx)<=REST_CENTER_TOLERANCE_MM)
                     rest_checks.append({"page":number,"system":order,"measure":measure,"count":count,
                         "ordinal":visible_ordinal,"center_delta_mm":round(dx,3),
                         "width_cap_mm":round(cap,3),"inside_and_centered":ok,
@@ -109,6 +112,7 @@ def inspect_export(pdf, xml, *, part_id="", measures_per_line=0, page_starts=Non
     return {"status":"review_needed" if issues else "pdf_layout_checked","pdf_sha256":pdf_sha256(pdf),
             "expected":{p:[n for n,_ in rs] for p,rs in expected.items()},"observed":page_grids,
             "rests":rest_checks,"issues":issues,
+            "rest_center_tolerance_mm":REST_CENTER_TOLERANCE_MM,
             "minimum_system_separation_mm":min((v for _,v in gaps),default=None),
             "text_collision_check":"visual_required_for_outlined_text"}
 
