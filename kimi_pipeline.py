@@ -29,6 +29,19 @@ EXPORT_INSTRUCTIONS = """JPword 桌面导出（本机已验证的操作约定）
   8. 将导出的 PDF 复制为：{expected}
 完成后重新运行本命令继续。"""
 
+SHA_PREFIX = "PDF SHA-256:"
+
+
+def review_path(job, edition):
+    return job / edition / "print-review.md"
+
+
+def review_sha(text):
+    for line in text.splitlines():
+        if line.startswith(SHA_PREFIX):
+            return line[len(SHA_PREFIX):].strip()
+    return None
+
 
 def state_path(job):
     return job / ".kimi-pipeline.json"
@@ -102,9 +115,14 @@ def do_audit(a, rt, job):
           f"长休止检查 {len(report.get('rests', []))} 处；pdf_sha256 {report.get('pdf_sha256', '')[:12]}")
     if issues:
         print("未解决问题：" + json.dumps(issues, ensure_ascii=False), file=sys.stderr)
-    review = job / "print-review.md"
+    review = review_path(job, a.edition)
+    expected = report.get("pdf_sha256", "")
     if not review.is_file():
-        print(f"提示：定稿前请在 {job} 保存 print-review.md（逐页目检记录），再重跑本命令。")
+        print(f"目检绑定：逐页核对导出后，在 {review} 写入首行「{SHA_PREFIX} {expected}」再定稿。")
+    else:
+        bound = review_sha(review.read_text(encoding="utf-8-sig"))
+        if bound != expected:
+            print(f"目检绑定：{review} 记录的 SHA 与本次导出不一致，请按当前导出重新目检并更新该行。")
 
 
 def do_finalize(a, rt, job):
@@ -114,7 +132,8 @@ def do_finalize(a, rt, job):
     if not audit_file.is_file():
         raise Wait(WAIT_REVIEW, f"{audit_file} 不存在；请先完成 audit 阶段（重跑本命令）。")
     audit = json.loads(audit_file.read_text(encoding="utf-8"))
-    if audit.get("pdf_sha256") != wf.digest(export):
+    current_sha = wf.digest(export)
+    if audit.get("pdf_sha256") != current_sha:
         raise Wait(WAIT_REVIEW,
                    f"导出已换版：最新 {export.name} 与审计记录哈希不一致。"
                    f"请运行带 --from audit 的同一命令重新审计后再定稿。")
@@ -124,10 +143,16 @@ def do_finalize(a, rt, job):
                    f"版面审计仍有 {len(issues)} 条未解决问题，不能定稿："
                    + json.dumps(issues, ensure_ascii=False)
                    + "；请修订并重新导出后，用 --from audit 续跑。")
-    review = job / "print-review.md"
-    if not review.is_file() or len(review.read_text(encoding="utf-8-sig").strip()) < 40:
+    review = review_path(job, a.edition)
+    if not review.is_file():
         raise Wait(WAIT_REVIEW,
-                   f"缺少有效的逐页目检记录 {review}；请按最新导出逐页核对后保存，再重跑本命令。")
+                   f"缺少逐页目检记录 {review}。请按当前导出逐页核对，"
+                   f"在文件首行写入「{SHA_PREFIX} {current_sha}」后重跑本命令。")
+    bound = review_sha(review.read_text(encoding="utf-8-sig"))
+    if bound != current_sha:
+        raise Wait(WAIT_REVIEW,
+                   f"{review} 未绑定当前导出：需要首行「{SHA_PREFIX} {current_sha}」"
+                   f"（现记录：{bound or '无'}）。请按当前导出重新目检后重跑。")
     wf.finalize(base_ns(a, job=job, edition=a.edition, review=review, pdf=export), rt)
 
 

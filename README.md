@@ -99,11 +99,14 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1 -Bac
 `kimi_pipeline.py` 用一份任务参数贯通全流程，阶段进度写入任务目录，人工核对或 JPword 窗口不可用后直接重跑同一命令即可续跑：
 
 ```powershell
-& $py ./kimi_pipeline.py --config ./runtime.local.json run --pdf $score --job $job --title '曲目名称' --template <JPword模板.jpwabc>
+$template = 'D:\谱面\模板.jpwabc'   # PowerShell 中勿直接写尖括号
+& $py ./kimi_pipeline.py --config ./runtime.local.json run --pdf $score --job $job --title '曲目名称' --template $template
 & $py ./kimi_pipeline.py status --job $job   # 查看阶段进度
 ```
 
 阶段依次为 prepare（识谱）→ review（人工核对，等待退出码 2）→ handoff → render → jpword-export（等待 JPword 桌面导出，退出码 3）→ audit → finalize。JPword 导出阶段约定：单实例运行，用 Kimi CU 虚拟鼠标打开「导出打印」菜单，逐帧读取两次确认并点击「是」，同名保存矢量 PDF 后复制为 `<job>/<edition>/jpword-export.pdf`；Codex CU 与 Kimi CU 串行占用输入，不并行驱动桌面。
+
+逐页目检记录写在 `<job>/<edition>/print-review.md`，首行必须绑定当前导出的完整哈希：`PDF SHA-256: <64 位十六进制>`（审计阶段会给出这一行）。导出换版或哈希不一致时定稿拒绝（退出码 2），防止旧目检被复用。PowerShell 中尖括号会被当作保留运算符，模板路径请先存入变量：`$template = 'D:\谱面\模板.jpwabc'` 再 `--template $template`。
 
 把 JPword 工具注册进 Kimi Code：
 
