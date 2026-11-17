@@ -1,5 +1,16 @@
 # 更新记录
 
+## 2026-11-17 Kimi Code 贯通入口与 MCP 注册
+
+- 新增 `kimi_pipeline.py run/status`：一条命令贯通 prepare → 人工核对 → handoff → render → JPword 桌面导出 → 导出审计 → finalize，复用 `workflow.py` 各阶段。进度写入任务目录 `.kimi-pipeline.json`；等待人工核对或 JPword 导出时以退出码 2/3 暂停，重跑同一命令从最近一步继续，`--from` 重跑指定阶段。
+- 新增 `mcp/install-kimi-mcp.ps1` 和 `mcp/jpword.mcp.json`：把 stdio 服务合并注册进 Kimi Code 的 `~/.kimi-code/mcp.json`，不覆盖已有服务。已在本机 Kimi Code 验证注册与 `jpword_*` 工具加载。
+- 明确 JPword 桌面导出约定：单实例运行；用 Kimi CU 虚拟鼠标打开导出菜单并逐帧确认两次「是」，同名保存矢量 PDF；Codex CU 与 Kimi CU 串行占用输入，不并行驱动桌面。
+- 校准常数文档化：参考模板下长休止符横向 2.400 mm/工程单位，普通文字纵向约 3.0 mm/工程单位；导出审计与校准工具区分页面毫米与工程单位，其他模板可传 `offset_scale` 实测比例。反复线按单一栏线计数，保留 10 mm 页顶/页底留白检查。
+- 定稿前校验导出审计：审计报告缺失、导出换版（哈希不一致）或仍有未解决版面问题时拒绝定稿并给出续跑方式；修订后须重新审计最新导出。
+- 本机以公开样谱 `examples/validated/staff.pdf` 从原始输入实跑到 JPword 工程、原生矢量导出和审计报告；结构检查不替代逐页目检。
+
+本次更新借助 AI 辅助完成。
+
 ## JPword 排版与 MCP 校准
 
 - 已精修工程可用 `jpword_repaginate` 按现有谱行分页。改变页码时保留力度、文字和长休止符的手工位置，便于加宽行距后减少每页谱行数。

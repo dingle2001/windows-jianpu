@@ -23,6 +23,16 @@ codex mcp add jpword -- $settings.python -B (Resolve-Path ./server.py).Path --ro
 codex mcp list
 ```
 
+## Kimi Code 注册
+
+运行注册脚本，把同一 stdio 服务合并写入 `~/.kimi-code/mcp.json`（保留已有服务，写前备份 `.bak`）：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\mcp\install-kimi-mcp.ps1 -Root '<乐谱工作目录>'
+```
+
+新开 Kimi Code 会话后可直接调用下表工具；从原始五线谱一路贯通到导出审计的入口见 [README 的贯通入口](../README.md#kimi-code-贯通入口)。
+
 工具内的文件参数都写相对工作目录的路径。写入工具需要新的输出文件名。生成工程需要工作目录里已有的 JPword 7.10m UTF-16 模板。
 
 | MCP 工具 | 用途 |

@@ -94,6 +94,25 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1 -Bac
 
 具备本地文件读取、图片查看和命令执行能力的 Agent 可直接走 CLI。支持 stdio MCP 的客户端还可以连接本地 JPword 服务，查询 MusicXML、核对源谱、生成 JPword 工程、调整文字及行距，并按导出 PDF 校准长休止符。[Agent 校对指令](docs/agent-review.md) · [MCP 配置与工具](docs/jpword-mcp.md) · [更新记录](CHANGELOG.md)
 
+### Kimi Code 贯通入口
+
+`kimi_pipeline.py` 用一份任务参数贯通全流程，阶段进度写入任务目录，人工核对或 JPword 窗口不可用后直接重跑同一命令即可续跑：
+
+```powershell
+& $py ./kimi_pipeline.py --config ./runtime.local.json run --pdf $score --job $job --title '曲目名称' --template <JPword模板.jpwabc>
+& $py ./kimi_pipeline.py status --job $job   # 查看阶段进度
+```
+
+阶段依次为 prepare（识谱）→ review（人工核对，等待退出码 2）→ handoff → render → jpword-export（等待 JPword 桌面导出，退出码 3）→ audit → finalize。JPword 导出阶段约定：单实例运行，用 Kimi CU 虚拟鼠标打开「导出打印」菜单，逐帧读取两次确认并点击「是」，同名保存矢量 PDF 后复制为 `<job>/<edition>/jpword-export.pdf`；Codex CU 与 Kimi CU 串行占用输入，不并行驱动桌面。
+
+把 JPword 工具注册进 Kimi Code：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\mcp\install-kimi-mcp.ps1 -Root '<乐谱工作目录>'
+```
+
+脚本合并写入 `~/.kimi-code/mcp.json`（不覆盖已有服务），新开会话即可调用 `jpword_*` 工具。校准常数：参考模板下长休止符横向 2.400 mm/工程单位、普通文字纵向约 3.0 mm/工程单位，其他模板用 `offset_scale` 传入实测比例。
+
 ## 来源与贡献
 
 1. xuxiran 的早期五线谱转简谱工作，为本项目提供方法参考。[xuxiran/translate-staff-to-simple-musical-notation](https://github.com/xuxiran/translate-staff-to-simple-musical-notation)

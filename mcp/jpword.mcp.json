@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "jpword": {
+      "command": "{{PYTHON}}",
+      "args": [
+        "-B",
+        "{{SERVER}}",
+        "--root",
+        "{{ROOT}}"
+      ],
+      "startupTimeoutMs": 30000,
+      "toolTimeoutMs": 120000
+    }
+  }
+}
