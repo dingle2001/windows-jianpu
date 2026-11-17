@@ -43,6 +43,12 @@ def review_sha(text):
     return None
 
 
+def review_body(text):
+    """目检正文：去掉哈希绑定行与空白行后的内容。"""
+    return "\n".join(line for line in text.splitlines()
+                     if not line.startswith(SHA_PREFIX)).strip()
+
+
 def state_path(job):
     return job / ".kimi-pipeline.json"
 
@@ -153,6 +159,10 @@ def do_finalize(a, rt, job):
         raise Wait(WAIT_REVIEW,
                    f"{review} 未绑定当前导出：需要首行「{SHA_PREFIX} {current_sha}」"
                    f"（现记录：{bound or '无'}）。请按当前导出重新目检后重跑。")
+    if len(review_body(review.read_text(encoding="utf-8-sig"))) < 40:
+        raise Wait(WAIT_REVIEW,
+                   f"{review} 除哈希行外缺少逐页目检正文（不少于 40 字）。"
+                   f"请逐页记录核对结果后再定稿。")
     wf.finalize(base_ns(a, job=job, edition=a.edition, review=review, pdf=export), rt)
 
 
